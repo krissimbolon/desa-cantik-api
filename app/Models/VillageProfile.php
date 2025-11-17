@@ -10,10 +10,10 @@ class VillageProfile extends Model
 {
     use HasFactory;
 
-    protected $table = 'desa_profiles';
+    protected $table = 'village_profiles';
 
     protected $fillable = [
-        'desa_id',
+        'village_id',
         'deskripsi',
         'sejarah',
         'visi',
@@ -21,6 +21,9 @@ class VillageProfile extends Model
         'foto_url',
         'area',
         'population',
+        'households',
+        'male_population',
+        'female_population',
         'population_density',
         'address',
         'phone',
@@ -35,12 +38,15 @@ class VillageProfile extends Model
     protected $casts = [
         'area' => 'float',
         'population' => 'integer',
+        'households' => 'integer',
+        'male_population' => 'integer',
+        'female_population' => 'integer',
         'population_density' => 'float',
         'is_featured' => 'boolean',
     ];
 
     public function village(): BelongsTo
     {
-        return $this->belongsTo(Village::class, 'desa_id');
+        return $this->belongsTo(Village::class, 'village_id');
     }
 }

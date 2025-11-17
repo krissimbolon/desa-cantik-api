@@ -1,18 +1,20 @@
 <?php
 
+use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\GeospatialDataController;
+use App\Http\Controllers\Api\MapPointController;
 use App\Http\Controllers\Api\PublicationController;
 use App\Http\Controllers\Api\StatisticTypeController;
+use App\Http\Controllers\Api\ThematicMapController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\VillageController;
+use App\Http\Controllers\Api\VillageModuleController;
+use App\Http\Controllers\Api\VillageProfileController;
 use App\Http\Controllers\Api\VillageStatisticController;
-use App\Http\Controllers\MapPointsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\VillageController;
-use App\Http\Controllers\VillageProfileController;
-use App\Http\Controllers\GeospatialDataController;
-use App\Http\Controllers\ThematicMapsController;
-use App\Http\Controllers\VillageModuleController;
 
 Route::prefix('v1')->group(function () {
     // ===============================================
@@ -28,6 +30,21 @@ Route::prefix('v1')->group(function () {
     // ===============================================
     Route::get('statistic-types', [StatisticTypeController::class, 'index']);
     Route::get('dashboard/public', [DashboardController::class, 'public']);
+
+    // Villages (Public)
+    Route::get('villages', [VillageController::class, 'index']);
+    Route::get('villages/{id}', [VillageController::class, 'show']);
+    Route::get('villages/{village_id}/profile', [VillageProfileController::class, 'show']);
+
+    // Geospatial Data (Public reads)
+    Route::get('villages/{village_id}/geospatial', [GeospatialDataController::class, 'index']);
+    Route::get('villages/{village_id}/geospatial/{geo_id}', [GeospatialDataController::class, 'show']);
+
+    // Thematic Maps (Public reads)
+    Route::get('villages/{village_id}/thematic-maps', [ThematicMapController::class, 'index']);
+    Route::get('thematic-maps/{map_id}', [ThematicMapController::class, 'show']);
+
+
 
     Route::get('villages/{village}/statistics', [VillageStatisticController::class, 'index']);
     Route::get('villages/{village}/statistics/summary', [VillageStatisticController::class, 'summary']);
@@ -53,12 +70,36 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/logout/all', [AuthController::class, 'logoutAll']);
         Route::post('auth/token/refresh', [AuthController::class, 'refresh']);
 
+        // Profile endpoints (spec 6.4)
+        Route::get('profile', [AuthController::class, 'me']);
+        Route::put('profile', [AuthController::class, 'updateProfile']);
+
         // Dashboard endpoints with explicit role middleware
         Route::get('dashboard/admin', [DashboardController::class, 'admin'])
             ->middleware('role:bps_admin');
 
         Route::get('dashboard/village', [DashboardController::class, 'village'])
             ->middleware('role:bps_admin,village_officer');
+
+        // User Management (BPS Admin only)
+        Route::middleware('role:bps_admin')->group(function () {
+            Route::get('users', [UserController::class, 'index']);
+            Route::get('users/{id}', [UserController::class, 'show']);
+            Route::post('users', [UserController::class, 'store']);
+            Route::put('users/{id}', [UserController::class, 'update']);
+            Route::delete('users/{id}', [UserController::class, 'destroy']);
+
+            // Activity Logs (BPS Admin only)
+            Route::get('activity-logs', [ActivityLogController::class, 'index']);
+            Route::get('activity-logs/export', [ActivityLogController::class, 'export']);
+            Route::get('activity-logs/{id}', [ActivityLogController::class, 'show']);
+
+            // Villages Management (BPS Admin only)
+            Route::post('villages', [VillageController::class, 'store']);
+            Route::put('villages/{id}', [VillageController::class, 'update']);
+            Route::delete('villages/{id}', [VillageController::class, 'destroy']);
+            Route::put('villages/{id}/toggle-status', [VillageController::class, 'toggleStatus']);
+        });
 
         // Village Statistics Management (Protected)
         Route::post('villages/{village}/statistics', [VillageStatisticController::class, 'store']);
@@ -71,100 +112,40 @@ Route::prefix('v1')->group(function () {
         Route::put('villages/{village}/publications/{publication}', [PublicationController::class, 'update']);
         Route::post('villages/{village}/publications/{publication}/replace-file', [PublicationController::class, 'replaceFile']);
         Route::delete('villages/{village}/publications/{publication}', [PublicationController::class, 'destroy']);
+
+        // Village Profile Management
+        Route::put('villages/{village_id}/profile', [VillageProfileController::class, 'update']);
+        Route::post('villages/{village_id}/profile/logo', [VillageProfileController::class, 'uploadLogo']);
+
+        // Geospatial Data Management
+        Route::post('villages/{village_id}/geospatial', [GeospatialDataController::class, 'store']);
+        Route::put('villages/{village_id}/geospatial/{geo_id}', [GeospatialDataController::class, 'update']);
+        Route::delete('villages/{village_id}/geospatial/{geo_id}', [GeospatialDataController::class, 'destroy']);
+
+        // Thematic Maps Management
+        Route::post('villages/{village_id}/thematic-maps', [ThematicMapController::class, 'store']);
+        Route::put('villages/{village_id}/thematic-maps/{map_id}', [ThematicMapController::class, 'update']);
+        Route::delete('villages/{village_id}/thematic-maps/{map_id}', [ThematicMapController::class, 'destroy']);
+
+        // Map Points Management
+        Route::post('thematic-maps/{map_id}/points', [MapPointController::class, 'store']);
+        Route::put('thematic-maps/{map_id}/points/{point_id}', [MapPointController::class, 'update']);
+        Route::delete('thematic-maps/{map_id}/points/{point_id}', [MapPointController::class, 'destroy']);
+        Route::post('thematic-maps/{map_id}/points/{point_id}/image', [MapPointController::class, 'uploadImage']);
+
+        // Village Modules Management (BPS Admin only)
+        Route::get('villages/{village_id}/modules', [VillageModuleController::class, 'index'])
+            ->middleware('role:bps_admin');
+        Route::put('villages/{village_id}/modules/{module_name}/toggle', [VillageModuleController::class, 'toggle'])
+            ->middleware('role:bps_admin');
     });
 });
+
+// Backward compatible village endpoints (without version prefix) for frontend mock expectations
+Route::get('villages', [VillageController::class, 'index']);
+Route::get('villages/{id}', [VillageController::class, 'show']);
 
 // Legacy endpoint for backward compatibility
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
-
-// ===============================================
-// VILLAGE MANAGEMENT ROUTES
-// ===============================================
-// GET /villages (Get All)
-Route::get('/villages', [VillageController::class, 'getAll']);
-
-// GET /villages/{id} (Get Detail)
-Route::get('/villages/{id}', [VillageController::class, 'getDetail']);
-
-// POST /villages (Create)
-Route::post('/villages', [VillageController::class, 'create']);
-
-// PUT /villages/{id} (Update)
-Route::put('/villages/{id}', [VillageController::class, 'update']);
-
-// DELETE /villages/{id} (Delete)
-Route::delete('/villages/{id}', [VillageController::class, 'delete']);
-
-// PUT /villages/{id}/toggle-status (Toggle Status Aktif)
-Route::put('/villages/{id}/toggle-status', [VillageController::class, 'toggleStatus']);
-
-// ===============================================
-// VILLAGE PROFILE ROUTES
-// ===============================================
-// GET /villages/{id}/profile (Get Profile)
-Route::get('/villages/{id}/profile', [VillageProfileController::class, 'getProfile']);
-
-// PUT /villages/{id}/profile (Update Profile)
-Route::put('/villages/{id}/profile', [VillageProfileController::class, 'updateProfile']);
-
-// POST /villages/{id}/profile/logo (Upload Logo)
-Route::post('/villages/{id}/profile/logo', [VillageProfileController::class, 'uploadLogo']);
-
-// ===============================================
-// GEOSPATIAL DATA ROUTES
-// ===============================================
-// GET /villages/{id}/geospatial (Get Data GeoJSON)
-Route::get('/villages/{id}/geospatial', [GeospatialDataController::class, 'getGeoSpatialData']);
-
-// POST /villages/{id}/geospatial (Create Geospatial Data)
-Route::post('/villages/{id}/geospatial', [GeospatialDataController::class, 'createGeoSpatialData']);
-
-// PUT /villages/{id}/geospatial/{id} (Update Geospatial Data)
-Route::put('/villages/{id}/geospatial/{geoId}', [GeospatialDataController::class, 'updateGeoSpatialData']);
-
-// DELETE /villages/{id}/geospatial/{id} (Delete Geospatial Data)
-Route::delete('/villages/{id}/geospatial/{geoId}', [GeospatialDataController::class, 'deleteGeoSpatialData']);
-
-// ===============================================
-// THEMATIC MAPS ROUTES
-// ===============================================
-// GET /villages/{id}/thematic-maps (Get Tema Peta)
-Route::get('/villages/{id}/thematic-maps', [ThematicMapsController::class, 'getThematicMaps']);
-
-// GET /thematic-maps/{id} (Detail Tema & Points)
-Route::get('/thematic-maps/{id}', [ThematicMapsController::class, 'getThematicMapDetail']);
-
-// POST /villages/{id}/thematic-maps (Create Tema)
-Route::post('/villages/{id}/thematic-maps', [ThematicMapsController::class, 'createThematicMap']);
-
-// PUT /villages/{id}/thematic-maps/{id} (Update Tema)
-Route::put('/villages/{id}/thematic-maps/{mapId}', [ThematicMapsController::class, 'updateThematicMap']);
-
-// DELETE /villages/{id}/thematic-maps/{id} (Delete Tema)
-Route::delete('/villages/{id}/thematic-maps/{mapId}', [ThematicMapsController::class, 'deleteThematicMap']);
-
-// ===============================================
-// MAP POINTS ROUTES
-// ===============================================
-// POST /thematic-maps/{id}/points (Create Titik Peta)
-Route::post('/thematic-maps/{id}/points', [MapPointsController::class, 'createMapPoint']);
-
-// PUT /thematic-maps/{id}/points/{pointId} (Update Titik)
-Route::put('/thematic-maps/{id}/points/{pointId}', [MapPointsController::class, 'updateMapPoint']);
-
-// DELETE /thematic-maps/{id}/points/{pointId} (Delete Titik)
-Route::delete('/thematic-maps/{id}/points/{pointId}', [MapPointsController::class, 'deleteMapPoint']);
-
-// POST /thematic-maps/{id}/points/{pointId}/image (Upload Gambar Titik)
-Route::post('/thematic-maps/{id}/points/{pointId}/image', [MapPointsController::class, 'uploadMapPointImage']);
-
-// ===============================================
-// VILLAGE MODULES ROUTES
-// ===============================================
-// GET /villages/{id}/modules (Get Modul Desa)
-Route::get('/villages/{id}/modules', [VillageModuleController::class, 'getModules']);
-
-// PUT /villages/{id}/modules/{name}/toggle (Toggle Modul)
-Route::put('/villages/{id}/modules/{name}/toggle', [VillageModuleController::class, 'toggleModule']);

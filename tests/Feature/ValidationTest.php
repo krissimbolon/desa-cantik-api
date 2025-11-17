@@ -8,6 +8,7 @@ use App\Models\UserRole;
 use App\Models\Village;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ValidationTest extends TestCase
@@ -20,7 +21,7 @@ class ValidationTest extends TestCase
         $this->seedBaseRoles();
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_required_fields_on_create(): void
     {
         $village = Village::factory()->create();
@@ -33,7 +34,7 @@ class ValidationTest extends TestCase
             ->assertJsonValidationErrors(['statistic_type_id', 'indicator_name', 'value', 'year']);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_statistic_type_exists(): void
     {
         $village = Village::factory()->create();
@@ -51,7 +52,7 @@ class ValidationTest extends TestCase
             ->assertJsonValidationErrors(['statistic_type_id']);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_value_is_numeric(): void
     {
         $village = Village::factory()->create();
@@ -70,7 +71,7 @@ class ValidationTest extends TestCase
             ->assertJsonValidationErrors(['value']);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_year_boundaries(): void
     {
         $village = Village::factory()->create();
@@ -103,7 +104,7 @@ class ValidationTest extends TestCase
             ->assertJsonValidationErrors(['year']);
     }
 
-    /** @test */
+    #[Test]
     public function it_sanitizes_string_inputs_against_xss(): void
     {
         $village = Village::factory()->create();
@@ -130,7 +131,7 @@ class ValidationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_prevents_sql_injection(): void
     {
         $village = Village::factory()->create();
@@ -156,7 +157,7 @@ class ValidationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_file_upload_mime_type(): void
     {
         $village = Village::factory()->create();
@@ -173,7 +174,7 @@ class ValidationTest extends TestCase
         $response->assertStatus(422);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_file_upload_size(): void
     {
         $village = Village::factory()->create();
@@ -185,7 +186,7 @@ class ValidationTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_string_length_limits(): void
     {
         $village = Village::factory()->create();
@@ -207,7 +208,7 @@ class ValidationTest extends TestCase
             ->assertJsonValidationErrors(['indicator_name']);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_negative_values_are_allowed(): void
     {
         $village = Village::factory()->create();
@@ -226,7 +227,7 @@ class ValidationTest extends TestCase
             ->assertJsonPath('data.value', -100.5);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_zero_values_are_allowed(): void
     {
         $village = Village::factory()->create();
@@ -245,7 +246,7 @@ class ValidationTest extends TestCase
             ->assertJsonPath('data.value', 0);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_decimal_precision(): void
     {
         $village = Village::factory()->create();

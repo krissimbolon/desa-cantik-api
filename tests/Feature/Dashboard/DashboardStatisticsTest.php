@@ -196,7 +196,7 @@ class DashboardStatisticsTest extends TestCase
             ->getJson('/api/v1/dashboard/village?village_id=' . $otherVillage->id);
 
         $response->assertOk()
-            ->assertJsonPath('data.village.id', $officer->desa_id);
+            ->assertJsonPath('data.village.id', $officer->village_id);
     }
 
     public function test_dashboard_returns_proper_error_for_missing_village_id(): void

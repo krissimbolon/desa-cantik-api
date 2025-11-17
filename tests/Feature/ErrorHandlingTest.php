@@ -10,6 +10,7 @@ use App\Models\VillageStatistic;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ErrorHandlingTest extends TestCase
@@ -22,7 +23,7 @@ class ErrorHandlingTest extends TestCase
         $this->seedBaseRoles();
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_empty_csv_file(): void
     {
         $village = Village::factory()->create();
@@ -38,7 +39,7 @@ class ErrorHandlingTest extends TestCase
         $response->assertStatus(422);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_csv_with_only_headers(): void
     {
         $village = Village::factory()->create();
@@ -58,7 +59,7 @@ class ErrorHandlingTest extends TestCase
             ->assertJsonPath('message', 'File tidak memiliki data. Pastikan file berisi data statistik.');
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_corrupted_csv_data(): void
     {
         $village = Village::factory()->create();
@@ -81,7 +82,7 @@ class ErrorHandlingTest extends TestCase
             ->assertJsonPath('data.imported', 0);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_missing_statistic_type_in_csv(): void
     {
         $village = Village::factory()->create();
@@ -104,7 +105,7 @@ class ErrorHandlingTest extends TestCase
             ->assertJsonStructure(['data' => ['errors']]);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_file_too_large(): void
     {
         $village = Village::factory()->create();
@@ -130,7 +131,7 @@ class ErrorHandlingTest extends TestCase
         $response->assertStatus(422);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_partial_import_failures(): void
     {
         $village = Village::factory()->create();
@@ -158,7 +159,7 @@ class ErrorHandlingTest extends TestCase
         $this->assertDatabaseCount('village_statistics', 2);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_concurrent_updates_gracefully(): void
     {
         $village = Village::factory()->create();
@@ -186,7 +187,7 @@ class ErrorHandlingTest extends TestCase
         $this->assertEquals(200, $statistic->value);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_delete_of_nonexistent_statistic(): void
     {
         $village = Village::factory()->create();
@@ -198,7 +199,7 @@ class ErrorHandlingTest extends TestCase
         $response->assertStatus(404);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_update_of_nonexistent_statistic(): void
     {
         $village = Village::factory()->create();
@@ -212,7 +213,7 @@ class ErrorHandlingTest extends TestCase
         $response->assertStatus(404);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_export_with_no_data(): void
     {
         $village = Village::factory()->create(['name' => 'TestVillage']);
@@ -223,7 +224,7 @@ class ErrorHandlingTest extends TestCase
         $response->assertHeader('content-disposition');
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_invalid_export_format(): void
     {
         $village = Village::factory()->create();
@@ -233,7 +234,7 @@ class ErrorHandlingTest extends TestCase
         $response->assertStatus(422);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_missing_csv_columns(): void
     {
         $village = Village::factory()->create();
@@ -255,7 +256,7 @@ class ErrorHandlingTest extends TestCase
             ->assertJsonPath('data.failed', 1);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_duplicate_entries_gracefully(): void
     {
         $village = Village::factory()->create();

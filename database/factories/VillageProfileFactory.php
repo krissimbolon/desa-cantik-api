@@ -15,15 +15,21 @@ class VillageProfileFactory extends Factory
 
     public function definition(): array
     {
+        $malePopulation = fake()->numberBetween(500, 5000);
+        $femalePopulation = fake()->numberBetween(500, 5000);
+
         return [
-            'desa_id' => \App\Models\Village::factory(),
+            'village_id' => \App\Models\Village::factory(),
             'deskripsi' => fake()->paragraph(),
             'sejarah' => fake()->paragraph(),
             'visi' => fake()->sentence(),
             'misi' => fake()->sentence(),
             'foto_url' => fake()->imageUrl(),
             'area' => fake()->randomFloat(2, 1, 100),
-            'population' => fake()->numberBetween(1000, 5000),
+            'population' => $malePopulation + $femalePopulation,
+            'households' => fake()->numberBetween(200, 2000),
+            'male_population' => $malePopulation,
+            'female_population' => $femalePopulation,
             'population_density' => fake()->randomFloat(2, 10, 300),
             'address' => fake()->address(),
             'phone' => fake()->phoneNumber(),

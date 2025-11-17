@@ -21,7 +21,7 @@ class VillageDashboardRequest extends FormRequest
         // If user is Village Officer, village_id is ignored (can only view their own)
         if ($user && $user->role?->role_name === UserRole::BPS_ADMIN) {
             return [
-                'village_id' => 'sometimes|integer|exists:desa,id',
+                'village_id' => 'sometimes|integer|exists:villages,id',
             ];
         }
 
@@ -49,6 +49,6 @@ class VillageDashboardRequest extends FormRequest
         }
 
         // Village Officer can only access their own village
-        return $user->desa_id;
+        return $user->village_id;
     }
 }

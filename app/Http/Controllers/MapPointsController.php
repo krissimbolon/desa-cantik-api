@@ -11,52 +11,82 @@ class MapPointsController extends Controller
     public function createMapPoint(Request $request, $id)
     {
         $thematicMap = ThematicMap::find($id);
-        if ($thematicMap) {
-            $validated = $request->validate([
-                'name' => 'required|string',
-                'coordinates' => 'required|array', // Misalnya koordinat titik
-                // Validasi lainnya jika diperlukan
-            ]);
-
-            $mapPoint = $thematicMap->mapPoints()->create($validated);
-            return response()->json($mapPoint, 201); // Kembalikan data titik peta yang baru
-        } else {
+        if (! $thematicMap) {
             return response()->json(['message' => 'Thematic map not found'], 404);
         }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'category' => 'nullable|string|max:100',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'icon_url' => 'nullable|url|max:500',
+            'metadata' => 'nullable|array',
+            // Compatibility: allow coordinates array [lat, lng]
+            'coordinates' => 'nullable|array|size:2',
+        ]);
+
+        $payload = $this->mergeCoordinates($validated);
+
+        $mapPoint = $thematicMap->mapPoints()->create($payload);
+        return response()->json([
+            'success' => true,
+            'data' => $mapPoint,
+        ], 201); // Kembalikan data titik peta yang baru
     }
 
     // PUT /thematic-maps/{id}/points/{pointId} (Update Titik)
     public function updateMapPoint(Request $request, $id, $pointId)
     {
         $thematicMap = ThematicMap::find($id);
-        if ($thematicMap) {
-            $mapPoint = $thematicMap->mapPoints()->find($pointId);
-            if ($mapPoint) {
-                $mapPoint->update($request->only(['name', 'coordinates'])); // Update titik peta
-                return response()->json($mapPoint);
-            } else {
-                return response()->json(['message' => 'Map point not found'], 404);
-            }
-        } else {
+        if (! $thematicMap) {
             return response()->json(['message' => 'Thematic map not found'], 404);
         }
+
+        $mapPoint = $thematicMap->mapPoints()->find($pointId);
+        if (! $mapPoint) {
+            return response()->json(['message' => 'Map point not found'], 404);
+        }
+
+        $validated = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'description' => 'nullable|string',
+            'category' => 'nullable|string|max:100',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'icon_url' => 'nullable|url|max:500',
+            'metadata' => 'nullable|array',
+            'coordinates' => 'nullable|array|size:2',
+        ]);
+
+        $payload = $this->mergeCoordinates($validated);
+
+        $mapPoint->update($payload); // Update titik peta
+        return response()->json([
+            'success' => true,
+            'data' => $mapPoint,
+        ]);
     }
 
     // DELETE /thematic-maps/{id}/points/{pointId} (Delete Titik)
     public function deleteMapPoint($id, $pointId)
     {
         $thematicMap = ThematicMap::find($id);
-        if ($thematicMap) {
-            $mapPoint = $thematicMap->mapPoints()->find($pointId);
-            if ($mapPoint) {
-                $mapPoint->delete(); // Menghapus titik peta
-                return response()->json(['message' => 'Map point deleted']);
-            } else {
-                return response()->json(['message' => 'Map point not found'], 404);
-            }
-        } else {
+        if (! $thematicMap) {
             return response()->json(['message' => 'Thematic map not found'], 404);
         }
+
+        $mapPoint = $thematicMap->mapPoints()->find($pointId);
+        if (! $mapPoint) {
+            return response()->json(['message' => 'Map point not found'], 404);
+        }
+
+        $mapPoint->delete(); // Menghapus titik peta
+        return response()->json([
+            'success' => true,
+            'message' => 'Map point deleted',
+        ]);
     }
 
     // POST /thematic-maps/{id}/points/{pointId}/image (Upload Gambar Titik)
@@ -73,15 +103,26 @@ class MapPointsController extends Controller
 
                 // Simpan gambar
                 $imagePath = $request->file('image')->store('public/map_points_images');
-                $mapPoint->image = $imagePath; // Simpan path gambar ke titik peta
+                $mapPoint->icon_url = $imagePath; // Simpan path gambar ke titik peta
                 $mapPoint->save();
 
-                return response()->json(['message' => 'Image uploaded successfully', 'image' => $imagePath]);
+                return response()->json(['success' => true, 'message' => 'Image uploaded successfully', 'image' => $imagePath]);
             } else {
                 return response()->json(['message' => 'Map point not found'], 404);
             }
         } else {
             return response()->json(['message' => 'Thematic map not found'], 404);
         }
+    }
+
+    private function mergeCoordinates(array $validated): array
+    {
+        if (isset($validated['coordinates'])) {
+            $validated['latitude'] = $validated['latitude'] ?? ($validated['coordinates'][0] ?? null);
+            $validated['longitude'] = $validated['longitude'] ?? ($validated['coordinates'][1] ?? null);
+            unset($validated['coordinates']);
+        }
+
+        return $validated;
     }
 }

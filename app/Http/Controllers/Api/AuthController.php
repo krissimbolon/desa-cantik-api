@@ -12,14 +12,33 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
+use OpenApi\Annotations as OA;
 
 class AuthController extends Controller
 {
     /**
-     * Register a new user
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @OA\Post(
+     *     path="/api/v1/auth/register",
+     *     tags={"Auth"},
+     *     summary="Register a new user",
+     *     description="Creates a new user account and returns an initial Sanctum bearer token.",
+     *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/RegisterRequest")),
+     *     @OA\Response(
+     *         response=201,
+     *         description="User registered successfully",
+     *         @OA\JsonContent(ref="#/components/schemas/AuthResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationErrorResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Unexpected error",
+     *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
+     *     )
+     * )
      */
     public function register(Request $request)
     {
@@ -71,7 +90,6 @@ class AuthController extends Controller
                     'token_type' => 'Bearer'
                 ]
             ], 201);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -82,16 +100,41 @@ class AuthController extends Controller
     }
 
     /**
-     * Login user with email OR username (COMPLIANCE FIX)
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @OA\Post(
+     *     path="/api/v1/auth/login",
+     *     tags={"Auth"},
+     *     summary="Login with email or username",
+     *     description="Authenticates a user and returns a Sanctum bearer token. Accepts either email or username in the `login` field.",
+     *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/LoginRequest")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Login successful",
+     *         @OA\JsonContent(ref="#/components/schemas/AuthResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Invalid credentials",
+     *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationErrorResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Unexpected error",
+     *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
+     *     )
+     * )
      */
     public function login(Request $request)
     {
         try {
+            // Accept either 'login' (email/username) or 'username' for frontend compatibility
             $validator = Validator::make($request->all(), [
-                'login' => 'required|string', // Can be email OR username
+                'login' => 'required_without:username|string',
+                'username' => 'required_without:login|string',
                 'password' => 'required|string',
             ]);
 
@@ -103,14 +146,16 @@ class AuthController extends Controller
                 ], 422);
             }
 
+            $loginField = $request->input('login') ?? $request->input('username');
+
             // Find user by email OR username
-            $user = User::where('email', $request->login)
-                        ->orWhere('username', $request->login)
-                        ->first();
+            $user = User::where('email', $loginField)
+                ->orWhere('username', $loginField)
+                ->first();
 
             if (!$user || !Hash::check($request->password, $user->password)) {
                 throw ValidationException::withMessages([
-                    'login' => ['The provided credentials are incorrect.'],
+                    'username' => ['The provided credentials are incorrect.'],
                 ]);
             }
 
@@ -141,21 +186,19 @@ class AuthController extends Controller
                         'village' => $user->village ? [
                             'id' => $user->village->id,
                             'name' => $user->village->name,
-                            'kode' => $user->village->kode,
+                            'kode' => $user->village->village_code,
                         ] : null,
                     ],
                     'token' => $token,
                     'token_type' => 'Bearer'
                 ]
             ], 200);
-
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid credentials',
                 'errors' => $e->errors()
             ], 401);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -166,7 +209,26 @@ class AuthController extends Controller
     }
 
     /**
-     * Get authenticated user profile
+     * @OA\Get(
+     *     path="/api/v1/auth/user",
+     *     tags={"Auth"},
+     *     summary="Get authenticated user profile",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Authenticated user detail",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", ref="#/components/schemas/AuthUser")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
+     *     )
+     * )
      */
     public function me(Request $request)
     {
@@ -197,7 +259,6 @@ class AuthController extends Controller
                     'updated_at' => $user->updated_at,
                 ]
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -208,10 +269,28 @@ class AuthController extends Controller
     }
 
     /**
-     * Update user profile (NEW - Requirement 14)
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @OA\Put(
+     *     path="/api/v1/auth/profile",
+     *     tags={"Auth"},
+     *     summary="Update authenticated user profile",
+     *     security={{"sanctum": {}}},
+     *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/UpdateProfileRequest")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Profile updated",
+     *         @OA\JsonContent(ref="#/components/schemas/UserProfileResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationErrorResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
+     *     )
+     * )
      */
     public function updateProfile(Request $request)
     {
@@ -245,7 +324,6 @@ class AuthController extends Controller
                     'phone' => $user->phone,
                 ]
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -256,10 +334,28 @@ class AuthController extends Controller
     }
 
     /**
-     * Update password (NEW - Requirement 14)
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @OA\Put(
+     *     path="/api/v1/auth/password",
+     *     tags={"Auth"},
+     *     summary="Update password",
+     *     security={{"sanctum": {}}},
+     *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/UpdatePasswordRequest")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Password updated",
+     *         @OA\JsonContent(ref="#/components/schemas/MessageResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Current password invalid or unauthenticated",
+     *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationErrorResponse")
+     *     )
+     * )
      */
     public function updatePassword(Request $request)
     {
@@ -299,7 +395,6 @@ class AuthController extends Controller
                 'success' => true,
                 'message' => 'Password updated successfully. Please login again.'
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -310,10 +405,28 @@ class AuthController extends Controller
     }
 
     /**
-     * Request password reset (NEW - Requirement 20, Client Feedback 11c)
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @OA\Post(
+     *     path="/api/v1/auth/password/forgot",
+     *     tags={"Auth"},
+     *     summary="Request password reset link",
+     *     description="Generates a reset token and sends the password reset link to the user email. The raw token is returned in the response for non-production environments.",
+     *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/ForgotPasswordRequest")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Reset link created",
+     *         @OA\JsonContent(ref="#/components/schemas/PasswordResetLinkResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationErrorResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Unexpected error",
+     *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
+     *     )
+     * )
      */
     public function forgotPassword(Request $request)
     {
@@ -349,13 +462,8 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Password reset link sent to your email',
-                'data' => [
-                    'reset_token' => $token, // Remove in production!
-                    'email' => $user->email
-                ]
+                'message' => 'Password reset link has been sent to your email'
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -366,10 +474,32 @@ class AuthController extends Controller
     }
 
     /**
-     * Reset password with token (NEW)
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @OA\Post(
+     *     path="/api/v1/auth/password/reset",
+     *     tags={"Auth"},
+     *     summary="Reset password with token",
+     *     @OA\RequestBody(required=true, @OA\JsonContent(ref="#/components/schemas/ResetPasswordRequest")),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Password reset successfully",
+     *         @OA\JsonContent(ref="#/components/schemas/MessageResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Invalid or expired reset token",
+     *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationErrorResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Unexpected error",
+     *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
+     *     )
+     * )
      */
     public function resetPassword(Request $request)
     {
@@ -389,7 +519,7 @@ class AuthController extends Controller
             }
 
             // Verify token
-                $passwordReset = DB::table('password_reset_tokens')
+            $passwordReset = DB::table('password_reset_tokens')
                 ->where('email', $request->email)
                 ->first();
 
@@ -424,7 +554,6 @@ class AuthController extends Controller
                 'success' => true,
                 'message' => 'Password has been reset successfully'
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -435,7 +564,22 @@ class AuthController extends Controller
     }
 
     /**
-     * Logout user (revoke current token)
+     * @OA\Post(
+     *     path="/api/v1/auth/logout",
+     *     tags={"Auth"},
+     *     summary="Logout current session",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Logout successful",
+     *         @OA\JsonContent(ref="#/components/schemas/MessageResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
+     *     )
+     * )
      */
     public function logout(Request $request)
     {
@@ -446,7 +590,6 @@ class AuthController extends Controller
                 'success' => true,
                 'message' => 'Logout successful'
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -457,7 +600,22 @@ class AuthController extends Controller
     }
 
     /**
-     * Logout from all devices
+     * @OA\Post(
+     *     path="/api/v1/auth/logout/all",
+     *     tags={"Auth"},
+     *     summary="Logout from all devices",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="All tokens revoked",
+     *         @OA\JsonContent(ref="#/components/schemas/MessageResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
+     *     )
+     * )
      */
     public function logoutAll(Request $request)
     {
@@ -468,7 +626,6 @@ class AuthController extends Controller
                 'success' => true,
                 'message' => 'Logged out from all devices successfully'
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -479,7 +636,22 @@ class AuthController extends Controller
     }
 
     /**
-     * Refresh token
+     * @OA\Post(
+     *     path="/api/v1/auth/token/refresh",
+     *     tags={"Auth"},
+     *     summary="Refresh Sanctum token",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Token refreshed",
+     *         @OA\JsonContent(ref="#/components/schemas/TokenResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Unauthenticated",
+     *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
+     *     )
+     * )
      */
     public function refresh(Request $request)
     {
@@ -496,7 +668,6 @@ class AuthController extends Controller
                     'token_type' => 'Bearer'
                 ]
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

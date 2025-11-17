@@ -70,7 +70,7 @@ class Village extends Model
 
     public function profile(): HasOne
     {
-        return $this->hasOne(VillageProfile::class, 'desa_id');
+        return $this->hasOne(VillageProfile::class, 'village_id');
     }
 
     public function activityLogs(): HasMany

@@ -14,92 +14,58 @@ class UserSeeder extends Seeder
     {
         $this->command->info('Starting user seeding...');
 
-        // ===== CREATE ROLES =====
-        if (UserRole::count() === 0) {
-            $this->command->info('Creating default roles...');
-            
-            $adminRole = UserRole::create([
-                'role_name' => 'admin',
-                'display_name' => 'Administrator',
-                'description' => 'System Administrator with full access',
-            ]);
+        // ===== FETCH ROLES =====
+        $this->command->info('Fetching roles...');
 
-            $bpsRole = UserRole::create([
-                'role_name' => 'bps_staff',
-                'display_name' => 'Staff BPS',
-                'description' => 'Staff BPS Toraja Utara',
-            ]);
+        $bpsAdminRole = UserRole::where('role_name', 'bps_admin')->first();
+        $villageOfficerRole = UserRole::where('role_name', 'village_officer')->first();
+        $guestRole = UserRole::where('role_name', 'guest')->first();
 
-            $desaRole = UserRole::create([
-                'role_name' => 'desa_admin',
-                'display_name' => 'Admin Desa',
-                'description' => 'Administrator Desa',
-            ]);
-        } else {
-            $this->command->info('Roles already exist. Fetching...');
-            
-            $adminRole = UserRole::where('role_name', 'admin')->first();
-            $bpsRole = UserRole::where('role_name', 'bps_staff')->first();
-            $desaRole = UserRole::where('role_name', 'desa_admin')->first();
+        // Verify roles exist
+        if (!$bpsAdminRole || !$villageOfficerRole || !$guestRole) {
+            $this->command->error('Required roles not found! Make sure RoleSeeder has been run first.');
+            return;
         }
 
-        // ===== CREATE ADMIN USER =====
+        // ===== CREATE BPS ADMIN USER =====
         if (!User::where('email', 'admin@bps.go.id')->exists()) {
             User::create([
-                'username' => 'admin',
+                'username' => 'bps_admin',
                 'email' => 'admin@bps.go.id',
                 'password' => Hash::make('password'),
-                'full_name' => 'Administrator Sistem',
+                'full_name' => 'Administrator BPS',
                 'phone_number' => '081234567890',
-                'role_id' => $adminRole->id,
+                'role_id' => $bpsAdminRole->id,
                 'village_id' => null,
                 'is_active' => true,
             ]);
-            
-            $this->command->info('✓ Admin user created: admin@bps.go.id (password: password)');
+
+            $this->command->info('✓ BPS Admin user created: admin@bps.go.id (password: password)');
         } else {
-            $this->command->warn('Admin user already exists. Skipping...');
+            $this->command->warn('BPS Admin user already exists. Skipping...');
         }
 
-        // ===== CREATE BPS STAFF USER =====
-        if (!User::where('email', 'staff@bps.go.id')->exists()) {
-            User::create([
-                'username' => 'bps_staff',
-                'email' => 'staff@bps.go.id',
-                'password' => Hash::make('password'),
-                'full_name' => 'Staff BPS Toraja Utara',
-                'phone_number' => '081234567891',
-                'role_id' => $bpsRole->id,
-                'village_id' => null,
-                'is_active' => true,
-            ]);
-            
-            $this->command->info('✓ BPS Staff user created: staff@bps.go.id (password: password)');
-        } else {
-            $this->command->warn('BPS Staff user already exists. Skipping...');
-        }
-
-        // ===== CREATE DESA ADMIN USER (if village exists) =====
+        // ===== CREATE VILLAGE OFFICER USER (if village exists) =====
         $village = Village::first();
-        if ($village && $desaRole) {
-            if (!User::where('email', 'admin@desa.go.id')->exists()) {
+        if ($village && $villageOfficerRole) {
+            if (!User::where('email', 'officer@desa.go.id')->exists()) {
                 User::create([
-                    'username' => 'desa_admin',
-                    'email' => 'admin@desa.go.id',
+                    'username' => 'village_officer',
+                    'email' => 'officer@desa.go.id',
                     'password' => Hash::make('password'),
-                    'full_name' => 'Admin Desa ' . $village->name,  // ← GANTI
-                    'phone_number' => '081234567892',
-                    'role_id' => $desaRole->id,
+                    'full_name' => 'Perangkat Desa ' . $village->name,
+                    'phone_number' => '081234567891',
+                    'role_id' => $villageOfficerRole->id,
                     'village_id' => $village->id,
                     'is_active' => true,
                 ]);
-                
-                $this->command->info('✓ Desa Admin user created: admin@desa.go.id (password: password)');
+
+                $this->command->info('✓ Village Officer user created: officer@desa.go.id (password: password)');
             } else {
-                $this->command->warn('Desa Admin user already exists. Skipping...');
+                $this->command->warn('Village Officer user already exists. Skipping...');
             }
         } else {
-            $this->command->warn('No village found in database. Skipping desa admin creation.');
+            $this->command->warn('No village found in database. Skipping village officer creation.');
         }
 
         // ===== SUMMARY =====

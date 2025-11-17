@@ -8,6 +8,7 @@ use App\Models\UserRole;
 use App\Models\Village;
 use App\Models\VillageStatistic;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PaginationTest extends TestCase
@@ -20,7 +21,7 @@ class PaginationTest extends TestCase
         $this->seedBaseRoles();
     }
 
-    /** @test */
+    #[Test]
     public function it_paginates_statistics_with_default_per_page(): void
     {
         $village = Village::factory()->create();
@@ -44,7 +45,7 @@ class PaginationTest extends TestCase
             ->assertJsonCount(15, 'data');
     }
 
-    /** @test */
+    #[Test]
     public function it_paginates_with_custom_per_page(): void
     {
         $village = Village::factory()->create();
@@ -66,7 +67,7 @@ class PaginationTest extends TestCase
             ->assertJsonCount(10, 'data');
     }
 
-    /** @test */
+    #[Test]
     public function it_limits_maximum_per_page_to_100(): void
     {
         $village = Village::factory()->create();
@@ -86,7 +87,7 @@ class PaginationTest extends TestCase
             ->assertJsonCount(100, 'data');
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_invalid_per_page_values(): void
     {
         $village = Village::factory()->create();
@@ -110,7 +111,7 @@ class PaginationTest extends TestCase
             ->assertJsonPath('meta.per_page', 15); // Falls back to default
     }
 
-    /** @test */
+    #[Test]
     public function it_navigates_to_specific_page(): void
     {
         $village = Village::factory()->create();
@@ -131,7 +132,7 @@ class PaginationTest extends TestCase
             ->assertJsonCount(10, 'data');
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_page_beyond_last_page(): void
     {
         $village = Village::factory()->create();
@@ -152,7 +153,7 @@ class PaginationTest extends TestCase
             ->assertJsonCount(0, 'data'); // Empty result
     }
 
-    /** @test */
+    #[Test]
     public function it_sorts_statistics_correctly(): void
     {
         $village = Village::factory()->create();
@@ -196,7 +197,7 @@ class PaginationTest extends TestCase
         $this->assertEquals(2022, $data[2]['year']);
     }
 
-    /** @test */
+    #[Test]
     public function it_preserves_query_parameters_in_pagination_links(): void
     {
         $village = Village::factory()->create();
@@ -217,7 +218,7 @@ class PaginationTest extends TestCase
         $this->assertEquals(30, $response->json('meta.total'));
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_empty_results_for_nonexistent_data(): void
     {
         $village = Village::factory()->create();
@@ -231,7 +232,7 @@ class PaginationTest extends TestCase
             ->assertJsonCount(0, 'data');
     }
 
-    /** @test */
+    #[Test]
     public function it_paginates_with_filters_applied(): void
     {
         $village = Village::factory()->create();

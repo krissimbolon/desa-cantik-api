@@ -363,11 +363,18 @@ chore: update composer dependencies
 
 ### Swagger UI (OpenAPI 3.0)
 
-Akses dokumentasi API interaktif:
+- Base URL: `${APP_URL}/api` (default: `http://localhost:8000/api`)
+- UI: `http://localhost:8000/api/documentation`
+- Spec output: `storage/api-docs/openapi.json` & `openapi.yaml` (auto-regenerated in `local` via `L5_SWAGGER_GENERATE_ALWAYS=true`)
 
+Generate/rebuild manually:
+```bash
+php artisan l5-swagger:generate
 ```
-http://localhost:8000/api/documentation
-```
+
+Notes:
+- Authentication uses Sanctum bearer tokens. Use the "Authorize" button in Swagger UI and paste `Bearer <token>` from `/api/v1/auth/login`.
+- Annotation sources live in `app/Docs` and the controllers under `app/Http/Controllers`.
 
 ### Postman Collection
 
@@ -375,35 +382,6 @@ Download collection:
 ```
 /docs/postman/Desa-Cantik-API.postman_collection.json
 ```
-
-### API Endpoints (Planned)
-
-#### Authentication
-```
-POST   /api/auth/register       - Register user
-POST   /api/auth/login          - Login & get JWT token
-POST   /api/auth/logout         - Logout
-POST   /api/auth/refresh        - Refresh token
-GET    /api/auth/me             - Get current user
-```
-
-#### Desa Management
-```
-GET    /api/desa                - List all desa
-POST   /api/desa                - Create desa (Admin)
-GET    /api/desa/{id}           - Get desa detail
-PUT    /api/desa/{id}           - Update desa
-DELETE /api/desa/{id}           - Delete desa
-```
-
-#### Statistics
-```
-GET    /api/indicators          - List indicators
-POST   /api/desa/{id}/data      - Add statistical data
-GET    /api/desa/{id}/data      - Get desa statistics
-```
-
-**Full API documentation:**
 
 ---
 

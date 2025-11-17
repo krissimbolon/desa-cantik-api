@@ -14,6 +14,11 @@ class StoreVillageStatisticRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge($this->sanitizedInputs());
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -33,5 +38,33 @@ class StoreVillageStatisticRequest extends FormRequest
             'source' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function sanitizedInputs(): array
+    {
+        $input = $this->all();
+        $fields = ['indicator_name', 'unit', 'period', 'source', 'notes'];
+
+        foreach ($fields as $field) {
+            if (array_key_exists($field, $input) && is_string($input[$field])) {
+                $input[$field] = $this->cleanString($input[$field]);
+            }
+        }
+
+        return $input;
+    }
+
+    protected function cleanString(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $clean = trim(strip_tags($value));
+
+        return $clean === '' ? null : $clean;
     }
 }
